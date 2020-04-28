@@ -17912,10 +17912,13 @@
       // Figure out the output shape.
       const size = computeOutShape$1(begin, end, strides);
       // Remove the axes based on shrinkMask.
-      const outShape = size.filter((_, axis) => shrinkAxes.indexOf(axis) === -1);
+      let outShape = size.filter((_, axis) => shrinkAxes.indexOf(axis) === -1);
       const nonStrided = strides.every(v => v === 1);
       if (nonStrided) {
-          return slice($x, begin, size).reshape(outShape);
+        if(ellipsisMask !== 0) {
+          return $x;
+        }
+        return slice($x, begin, size).reshape(outShape);
       }
       const res = ENGINE.runKernelFunc(backend => backend.stridedSlice($x, begin, end, strides), { $x });
       return res.reshape(outShape);
