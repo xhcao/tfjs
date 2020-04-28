@@ -3582,9 +3582,12 @@
           }
           if (!indices) {
               indices = [];
-              for (let i = 0; i < this.size(); i++) {
+              for (let i = 0; i < this.tensors.length; i++) {
                   indices.push(i);
               }
+          }
+          else {
+              indices = indices.slice(0, this.tensors.length);
           }
           if (indices.length === 0) {
               return tfc.tensor([], [0].concat(this.elementShape));
