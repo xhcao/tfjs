@@ -72,6 +72,20 @@ const sentences = [
 ];
 
 const benchmarks = {
+  'halloween': {
+    load: async () => {
+      const url = './halloween_tfjs/model.json';
+      const model = await tf.loadGraphModel(url);
+      console.log(model);
+      return model;
+    },
+    predictFunc: () => {
+      const first = tf.scalar(0);
+      const second = tf.ones([1, 1], 'int32');
+      const third = tf.ones([1, 20, 5]);
+      return async model => model.executeAsync([first, second, third]);
+    }
+  },
   'mobilenet_v2': {
     load: async () => {
       const url =
