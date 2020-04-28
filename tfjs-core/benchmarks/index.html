@@ -57,11 +57,14 @@ limitations under the License.
       <tbody></tbody>
     </table>
   </div>
-  <script src="https://unpkg.com/@tensorflow/tfjs-core@latest/dist/tf-core.js"></script>
-  <script src="https://unpkg.com/@tensorflow/tfjs-layers@latest/dist/tf-layers.js"></script>
-  <script src="https://unpkg.com/@tensorflow/tfjs-converter@latest/dist/tf-converter.js"></script>
-  <script src="https://unpkg.com/@tensorflow/tfjs-backend-wasm@latest/dist/tf-backend-wasm.js"></script>
-  <script src="https://unpkg.com/@tensorflow/tfjs-automl@latest/dist/tf-automl.js"></script>
+  <!-- <script src="https://unpkg.com/@tensorflow/tfjs-core@latest/dist/tf-core.js"></script> -->
+  <script src="./tf-core.es2017.js"></script>
+  <script src="./tf-backend-webgl.es2017.js"></script>
+  <!-- <script src="https://unpkg.com/@tensorflow/tfjs-layers@latest/dist/tf-layers.js"></script> -->
+  <!-- <script src="https://unpkg.com/@tensorflow/tfjs-converter@latest/dist/tf-converter.js"></script> -->
+  <script src="./tf-converter.es2017.js"></script>
+  <!-- <script src="https://unpkg.com/@tensorflow/tfjs-backend-wasm@latest/dist/tf-backend-wasm.js"></script> -->
+  <!-- <script src="https://unpkg.com/@tensorflow/tfjs-automl@latest/dist/tf-automl.js"></script> -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/universal-sentence-encoder"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2"></script>
@@ -80,6 +83,15 @@ limitations under the License.
       backend: 'webgl',
       kernelTiming: 'aggregate',
     };
+
+    tf.registerOp('ReverseSequence', ({inputs}) => {
+      console.log("REVERSE SEQUENCE");
+      const x = inputs[0];
+      console.log(x.shape);
+      console.log(inputs[1].dataSync());
+
+      return [x];
+    });
 
     const modalDiv = document.getElementById('modal-msg');
     const timeTable = document.querySelector('#timings tbody');

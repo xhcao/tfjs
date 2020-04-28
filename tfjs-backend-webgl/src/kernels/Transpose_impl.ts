@@ -16,19 +16,45 @@
  */
 
 // tslint:disable-next-line: no-imports-from-dist
-import {transposeImpl as transposeImplCPU} from '@tensorflow/tfjs-backend-cpu/dist/shared';
-import {env, TensorInfo} from '@tensorflow/tfjs-core';
+// import { transposeImpl as transposeImplCPU } from '@tensorflow/tfjs-backend-cpu/dist/shared';
+import { env, TensorInfo, DataType, NumericDataType, TypedArray, util } from '@tensorflow/tfjs-core';
 
-import {MathBackendWebGL} from '../backend_webgl';
-import {TransposeProgram} from '../transpose_gpu';
-import {TransposePackedProgram} from '../transpose_packed_gpu';
+import { MathBackendWebGL } from '../backend_webgl';
+import { TransposeProgram } from '../transpose_gpu';
+import { TransposePackedProgram } from '../transpose_packed_gpu';
+
+export function transposeImplCPU(
+  xVals: TypedArray, xShape: number[], dtype: DataType, perm: number[],
+  newShape: number[]): TypedArray {
+  const xSize = util.sizeFromShape(xShape);
+  const xRank = xShape.length;
+  const xStrides = util.computeStrides(xShape);
+  const newStrides = util.computeStrides(newShape);
+
+  const result = util.getTypedArrayFromDType(
+    dtype as NumericDataType, util.sizeFromShape(newShape));
+
+  for (let i = 0; i < xSize; ++i) {
+    const loc = util.indexToLoc(i, xRank, xStrides);
+
+    // Permute location.
+    const newLoc: number[] = new Array(loc.length);
+    for (let i = 0; i < newLoc.length; i++) {
+      newLoc[i] = loc[perm[i]];
+    }
+
+    const newIndex = util.locToIndex(newLoc, xRank, newStrides);
+    result[newIndex] = xVals[i];
+  }
+  return result;
+}
 
 export function transposeImpl(
-    x: TensorInfo, perm: number[], backend: MathBackendWebGL): TensorInfo {
+  x: TensorInfo, perm: number[], backend: MathBackendWebGL): TensorInfo {
   const program = env().getBool('WEBGL_PACK_ARRAY_OPERATIONS') ?
-      new TransposePackedProgram(x.shape, perm) :
-      new TransposeProgram(x.shape, perm);
+    new TransposePackedProgram(x.shape, perm) :
+    new TransposeProgram(x.shape, perm);
   return backend.runWebGLProgram(program, [x], x.dtype);
 }
 
-export {transposeImplCPU};
+// export { transposeImplCPU };

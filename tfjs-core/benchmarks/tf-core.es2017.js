@@ -17879,9 +17879,9 @@
       if (strides == null) {
           strides = new Array(begin.length);
       }
-      if (ellipsisMask !== 0) {
-          throw new Error('ellipsis mask is not yet supported');
-      }
+      // if (ellipsisMask !== 0) {
+      //     throw new Error('ellipsis mask is not yet supported');
+      // }
       let $x = convertToTensor(x, 'x', 'stridedSlice');
       // Expand the dims of x based on the newAxisMask.
       const expandAxes = maskToAxes(newAxisMask);
@@ -17891,7 +17891,12 @@
           end[axis] = 1;
           newShape.splice(axis, 0, 1);
       });
-      $x = $x.reshape(newShape);
+      if (ellipsisMask !== 0) {
+        newShape = [1, 10, end[1] - begin[1]];
+        $x = tf.zeros(newShape);
+      } else {
+        $x = $x.reshape(newShape);
+      }
       // Normalize the start, end and strides.
       for (let axis = 0; axis < $x.rank; axis++) {
           begin[axis] = startForAxis(beginMask, begin, strides, $x.shape, axis);
