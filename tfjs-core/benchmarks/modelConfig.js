@@ -72,18 +72,21 @@ const sentences = [
 ];
 
 const benchmarks = {
-  'halloween': {
+  'h2020': {
     load: async () => {
-      const url = './halloween_tfjs/model.json';
+      const url = './h2020/model.json';
       const model = await tf.loadGraphModel(url);
-      console.log(model);
       return model;
     },
     predictFunc: () => {
-      const first = tf.scalar(0);
-      const second = tf.ones([1, 1], 'int32');
-      const third = tf.ones([1, 20, 5]);
-      return async model => model.executeAsync([first, second, third]);
+      const globalStep = tf.scalar(0); // this is ignored.
+      const batchDim = 1;
+      const numberOfStrokes = 1;
+      const numberOfFeatures = 5; // x, y, t, new_stroke, penup
+      const numberOfPoints = 50;
+      const fedInputSizes = tf.ones([batchDim, numberOfStrokes], 'int32');
+      const third = tf.ones([batchDim, numberOfPoints, numberOfFeatures]);
+      return async model => model.executeAsync([globalStep, fedInputSizes, third]);
     }
   },
   'mobilenet_v2': {

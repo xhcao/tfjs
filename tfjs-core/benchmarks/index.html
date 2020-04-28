@@ -76,7 +76,7 @@ limitations under the License.
 
     const state = {
       numRuns: 50,
-      benchmark: 'halloween',
+      benchmark: 'h2020',
       run: (v) => {
         runBenchmark();
       },
@@ -84,11 +84,9 @@ limitations under the License.
       kernelTiming: 'aggregate',
     };
 
-    tf.registerOp('ReverseSequence', ({inputs}) => {
-      console.log("REVERSE SEQUENCE");
+    tf.registerOp('ReverseSequence', node => {
+      const inputs = node.inputs;
       const x = inputs[0];
-      console.log(x.shape);
-      console.log(inputs[1].dataSync());
 
       return [x];
     });
