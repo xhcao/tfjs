@@ -17885,7 +17885,7 @@
       let $x = convertToTensor(x, 'x', 'stridedSlice');
       // Expand the dims of x based on the newAxisMask.
       const expandAxes = maskToAxes(newAxisMask);
-      const newShape = $x.shape.slice();
+      let newShape = $x.shape.slice();
       expandAxes.forEach(axis => {
           begin[axis] = 0;
           end[axis] = 1;
