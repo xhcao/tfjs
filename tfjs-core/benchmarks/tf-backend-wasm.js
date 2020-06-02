@@ -595,7 +595,9 @@
               const innerDim = innerDims[i];
               const inOffset = b * innerDim;
               const vals = inVals[i].subarray(inOffset, inOffset + innerDim);
-              outVals.set(vals, outOffset);
+              if (outOffset < outVals.length) {
+                outVals.set(vals, outOffset);
+              }
               outOffset += innerDim;
           }
       }
