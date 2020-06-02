@@ -3547,6 +3547,7 @@
               (this.elementShape == null || this.elementShape.length === 0)) {
               this.elementShape = tensor.shape;
           }
+          console.log(this.elementShape, tensor.shape);
           this.assertShapesMatchAllowUndefinedSize(this.elementShape, tensor.shape, `TensorArray ${this.name}: Could not write to TensorArray index ${index}.`);
           if (t && t.read) {
               throw new Error(`TensorArray ${this.name}: Could not write to TensorArray index ${index}, because it has already been read.`);
@@ -5228,6 +5229,7 @@
           return tensorsMap;
       }
       processStack(inputNodes, stack, context, tensorMap, added, tensorsToKeep, outputNames, intermediateTensorConsumerCount, usedNodes) {
+        console.log("PROCESS STACK");
           const promises = [];
           while (stack.length > 0) {
               const item = stack.pop();
@@ -5265,6 +5267,7 @@
               else {
                   this.processChildNodes(item.node, stack, context, tensorMap, added, usedNodes);
               }
+              console.log(nodeName, tensorMap[nodeName] ? tensorMap[nodeName][0].shape : '');
           }
           return promises;
       }

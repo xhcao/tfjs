@@ -3590,7 +3590,7 @@
                 var accumulatedGradientMap = {};
                 accumulatedGradientMap[y.id] = (dy == null) ? ones(y.shape) : dy;
                 // Backprop gradients through the filtered nodes.
-                backpropagateGradients(accumulatedGradientMap, filteredTape, 
+                backpropagateGradients(accumulatedGradientMap, filteredTape,
                 // Pass the tidy function to avoid circular dep with `tape.ts`.
                 function (f) { return _this.tidy(f); });
                 var grads = xs.map(function (x) { return accumulatedGradientMap[x.id]; });
@@ -4908,6 +4908,7 @@
             });
         }
         var $axis = parseAxisParam(axis, $tensors[0].shape)[0];
+        console.log("CORE CONCAT", $axis, axis);
         var outShape = computeOutShape($tensors.map(function (t) { return t.shape; }), $axis);
         if (sizeFromShape(outShape) === 0) {
             return tensor([], outShape);
@@ -4921,6 +4922,7 @@
         assertParamsConsistent(shapes, $axis);
         var forward = function (backend, save) {
             var $axis = parseAxisParam(axis, $tensors[0].shape)[0];
+            console.log("CORE CONCAT", $axis);
             var res = backend.concat($tensors, $axis);
             save($tensors);
             return res;
@@ -17215,10 +17217,10 @@
     // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
     // copies of the Software, and to permit persons to whom the Software is
     // furnished to do so, subject to the following conditions:
-    // 
+    //
     // The above copyright notice and this permission notice shall be included in
     // all copies or substantial portions of the Software.
-    // 
+    //
     // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
     // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
     // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -23083,7 +23085,7 @@
                 return __generator(this, function (_a) {
                     switch (_a.label) {
                         case 0: return [4 /*yield*/, this.saveIterations()];
-                        case 1: 
+                        case 1:
                         // Order matters for Python compatibility.
                         return [2 /*return*/, [_a.sent()].concat(this.accumulatedGrads.map(function (v) { return ({ name: v.originalName, tensor: v.variable }); }))];
                     }
@@ -23588,7 +23590,7 @@
                 return __generator(this, function (_a) {
                     switch (_a.label) {
                         case 0: return [4 /*yield*/, this.saveIterations()];
-                        case 1: 
+                        case 1:
                         // Order matters for Python compatibility.
                         return [2 /*return*/, [_a.sent()].concat(this.accumulations.map(function (v) { return ({ name: v.originalName, tensor: v.variable }); }))];
                     }
