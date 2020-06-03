@@ -1411,9 +1411,21 @@
       const { reductionIndices } = attrs;
       const { x } = inputs;
       const xId = backend.dataIdMap.get(x.dataId).id;
+      let xShape = x.shape;
       const origAxes = tfjsCore.util.parseAxisParam(reductionIndices, x.shape);
-      tfjsCore.backend_util.assertAxesAreInnerMostDims('max', origAxes, x.shape.length);
-      const [outShape, reduceShape] = tfjsCore.backend_util.computeOutAndReduceShapes(x.shape, origAxes);
+      const permutedAxes = tfjsCore.backend_util.getAxesPermutation(origAxes, x.shape.length);
+      console.log("IS WASM MAX PERMUTED?", permutedAxes);
+      let axes = origAxes;
+      if (permutedAxes) {
+        axes = tfjsCore.backend_util.getInnerMostAxes(axes.length, x.shape.length);
+        const newShape = new Array(x.shape.length);
+        for(let i=0; i<newShape.length; i++) {
+          newShape[i] = xShape[permutedAxes[i]];
+        }
+        xShape = newShape;
+      }
+      // tfjsCore.backend_util.assertAxesAreInnerMostDims('max', origAxes, x.shape.length);
+      const [outShape, reduceShape] = tfjsCore.backend_util.computeOutAndReduceShapes(xShape, axes);
       const reduceSize = tfjsCore.util.sizeFromShape(reduceShape);
       const out = backend.makeOutput(outShape, x.dtype);
       if (tfjsCore.util.sizeFromShape(x.shape) === 0) {
