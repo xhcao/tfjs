@@ -19,7 +19,7 @@
 
 import './flags_webgpu';
 
-import {backend_util, DataStorage, DataType, engine, env, findBackend, KernelBackend, Rank, RecursiveArray, ShapeMap, slice_util, sumOutType, Tensor, Tensor1D, Tensor2D, Tensor3D, Tensor4D, TimingInfo, util} from '@tensorflow/tfjs-core';
+import {backend_util, DataStorage, DataType, engine, env, findBackend, KernelBackend, Rank, RecursiveArray, ShapeMap, slice_util, sumOutType, Tensor, Tensor1D, Tensor2D, Tensor3D, Tensor4D, TensorInfo, TimingInfo, util} from '@tensorflow/tfjs-core';
 import {Glslang} from '@webgpu/glslang/dist/web-devel/glslang.onefile';
 
 import {BufferManager} from './buffer_manager';
@@ -60,11 +60,11 @@ export interface WebGPUMemoryInfo extends backend_util.MemoryInfo {
 
 type BufferInfo = {
   byteSize: number,
-  usage: GPUBufferUsage,
+  usage: GPUBufferUsageFlags,
   buffer?: GPUBuffer
 };
 
-type TensorInfo = {
+type TensorBufferInfo = {
   values: backend_util.BackendValues,
   dtype: DataType,
   bufferInfo: BufferInfo
@@ -105,7 +105,7 @@ export class WebGPUBackend extends KernelBackend {
   private binaryCache: {[key: string]: WebGPUBinary};
   private fromPixels2DContext: CanvasRenderingContext2D;
   private bufferManager: BufferManager;
-  private tensorMap: DataStorage<TensorInfo>;
+  private tensorMap: DataStorage<TensorBufferInfo>;
 
   private tensorDisposalQueue: DataId[] = [];
   private uniformDisposalQueue: BufferInfo[] = [];
@@ -174,7 +174,7 @@ export class WebGPUBackend extends KernelBackend {
   }
 
   private acquireBuffer(
-      byteSize: number, usage: GPUBufferUsage = DEFAULT_GPUBUFFER_USAGE) {
+      byteSize: number, usage: GPUBufferUsageFlags = DEFAULT_GPUBUFFER_USAGE) {
     return this.bufferManager.acquireBuffer(byteSize, usage);
   }
 
@@ -229,7 +229,7 @@ export class WebGPUBackend extends KernelBackend {
     return this.tensorMap.get(dataId).bufferInfo.buffer;
   }
 
-  private async getBufferData(info: TensorInfo):
+  private async getBufferData(info: TensorBufferInfo):
       Promise<backend_util.BackendValues> {
     if (info.values != null) {
       // Data is on the CPU.
@@ -355,7 +355,7 @@ export class WebGPUBackend extends KernelBackend {
     return engine().makeTensorFromDataId(dataId, shape, dtype, this) as T;
   }
 
-  private tensorToBinding(tensor?: Tensor): webgpu_program.BindingInfo {
+  private tensorToBinding(tensor?: TensorInfo): webgpu_program.BindingInfo {
     if (!tensor) {
       return null;
     }
@@ -365,7 +365,8 @@ export class WebGPUBackend extends KernelBackend {
     return {
       resource: {
         offset: 0,
-        size: tensor.size * util.bytesPerElement(tensor.dtype),
+        size: util.sizeFromShape(tensor.shape) *
+            util.bytesPerElement(tensor.dtype),
         buffer: tensorData.bufferInfo.buffer
       }
     };
@@ -401,61 +402,70 @@ export class WebGPUBackend extends KernelBackend {
     }
   }
 
-  public compileAndRun<
-      K extends {dtype: DataType, size: number, dataId: {}, shape: number[]}>(
-      program: webgpu_program.WebGPUProgram, inputs: Tensor[], output?: Tensor,
-      programUniforms?: number[]): K {
+  public compileAndRun<K extends TensorInfo>(
+      program: webgpu_program.WebGPUProgram, inputs: TensorInfo[],
+      output?: TensorInfo, programUniforms?: number[]): K {
     if (output == null) {
       output = this.makeOutputArray(program.outputShape, inputs[0].dtype);
     }
+
     let dimUniforms: number[] = [];
     const bufferShapes = inputs.concat(output).map(d => d.shape);
-    let currentOffset = 0;
-    bufferShapes.forEach((d, i) => {
-      // Uniforms.
-      if (d.length === 0) {
-        d = [1];
-      }
-      // Complete std140 layout rules are documented here:
-      // tslint:disable-next-line:max-line-length
-      // https://www.khronos.org/registry/OpenGL/specs/gl/glspec45.core.pdf#page=159
-      let baseAlignment: number;
-      switch (d.length) {
-        case 0:
-          baseAlignment = 1;
-          break;
-        case 1:
-          baseAlignment = 1;
-          break;
-        case 2:
-          baseAlignment = 2;
-          break;
-        case 3:
-          baseAlignment = 4;
-          break;
-        case 4:
-          baseAlignment = 4;
-          break;
-        default:
-          util.assert(false, () => `Unsupported ${d.length}D shape`);
-      }
+    if (program.needsShapesUniforms) {
+      let currentOffset = 0;
+      bufferShapes.forEach((d, i) => {
+        // Uniforms.
+        if (d.length === 0) {
+          d = [1];
+        }
+        // Complete std140 layout rules are documented here:
+        // tslint:disable-next-line:max-line-length
+        // https://www.khronos.org/registry/OpenGL/specs/gl/glspec45.core.pdf#page=159
+        let baseAlignment: number;
+        switch (d.length) {
+          case 0:
+            baseAlignment = 1;
+            break;
+          case 1:
+            baseAlignment = 1;
+            break;
+          case 2:
+            baseAlignment = 2;
+            break;
+          case 3:
+            baseAlignment = 4;
+            break;
+          case 4:
+            baseAlignment = 4;
+            break;
+          default:
+            util.assert(false, () => `Unsupported ${d.length}D shape`);
+        }
 
-      const padding = Math.ceil(currentOffset / baseAlignment) * baseAlignment -
-          currentOffset;
-      for (let p = 0; p < padding; ++p) {
-        dimUniforms.push(0);
-      }
-      dimUniforms.push(...d);
-      currentOffset += d.length + padding;
-    });
+        const padding =
+            Math.ceil(currentOffset / baseAlignment) * baseAlignment -
+            currentOffset;
+        for (let p = 0; p < padding; ++p) {
+          dimUniforms.push(0);
+        }
+        dimUniforms.push(...d);
+        currentOffset += d.length + padding;
+      });
+    }
 
     // TODO: handle padding of program-specific uniforms
     if (programUniforms) {
       dimUniforms = dimUniforms.concat(programUniforms);
     }
 
-    const uniformData = new Int32Array(dimUniforms);
-    const uniforms = this.makeUniforms(uniformData);
+    let uniformDataLength;
+    let uniforms: webgpu_program.BindingInfo;
+    const hasUniforms = program.needsShapesUniforms || program.uniforms;
+    if (hasUniforms) {
+      const uniformData = new Int32Array(dimUniforms);
+      uniformDataLength = uniformData.byteLength;
+      uniforms = this.makeUniforms(uniformData);
+    }
 
     const inputsData = inputs.map((input: Tensor, i: number) => {
       this.uploadToGPU(input.dataId);
@@ -502,12 +512,14 @@ export class WebGPUBackend extends KernelBackend {
     });
     this.commandQueueOwnedIds.add(output.dataId);
 
-    const uniformInfo = {
-      byteSize: uniformData.byteLength,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
-      buffer: uniforms.resource.buffer
-    };
-    this.uniformDisposalQueue.push(uniformInfo);
+    if (hasUniforms) {
+      const uniformInfo = {
+        byteSize: uniformDataLength,
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
+        buffer: uniforms.resource.buffer
+      };
+      this.uniformDisposalQueue.push(uniformInfo);
+    }
 
     if (env().get('WEBGPU_IMMEDIATE_EXECUTION_ENABLED')) {
       this.submitQueue();
@@ -797,8 +809,8 @@ export class WebGPUBackend extends KernelBackend {
 
     const dimensions = [
       convInfo.filterHeight, convInfo.filterWidth, ...pad,
-      convInfo.strideHeight, convInfo.strideWidth,
-      convInfo.dilationHeight, convInfo.dilationWidth
+      convInfo.strideHeight, convInfo.strideWidth, convInfo.dilationHeight,
+      convInfo.dilationWidth
     ];
 
     const inputs: Tensor[] = [input, filter];
@@ -931,10 +943,6 @@ export class WebGPUBackend extends KernelBackend {
       return this.cpuBackend.multiply(a, b);
     }
     return this.binaryOp(a, b, binary_op.MUL);
-  }
-
-  realDivide(a: Tensor, b: Tensor): Tensor {
-    return this.binaryOp(a, b, binary_op.DIV);
   }
 
   floorDiv(a: Tensor, b: Tensor): Tensor {

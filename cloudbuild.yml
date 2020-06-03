@@ -71,13 +71,12 @@ steps:
   args: ['./scripts/run-build.sh', 'tfjs']
   waitFor: ['find-affected-packages']
 
-# TODO(yassogba) re-enable after big merge
 # Vis.
-# - name: 'gcr.io/cloud-builders/gcloud'
-#   entrypoint: 'bash'
-#   id: 'tfjs-vis'
-#   args: ['./scripts/run-build.sh', 'tfjs-vis']
-#   waitFor: ['find-affected-packages']
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  id: 'tfjs-vis'
+  args: ['./scripts/run-build.sh', 'tfjs-vis']
+  waitFor: ['find-affected-packages']
 
 # WebGPU.
 - name: 'gcr.io/cloud-builders/gcloud'
@@ -123,6 +122,14 @@ steps:
   entrypoint: 'yarn'
   args: ['test-release-notes']
   waitFor: ['yarn']
+
+# E2E test
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  id: 'e2e'
+  args: ['./scripts/run-build.sh', 'e2e']
+  waitFor: ['find-affected-packages']
+  env: ['NIGHTLY=$_NIGHTLY']
 
 # General settings.
 timeout: 3600s

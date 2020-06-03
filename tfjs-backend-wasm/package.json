@@ -23,7 +23,7 @@
     "lint": "tslint -p . -t verbose && yarn cpplint",
     "test": "yarn && yarn build-deps && yarn build && karma start",
     "test-ci": "./scripts/test-ci.sh",
-    "test-node": "ts-node -P tsconfig.test.json src/test_node.ts",
+    "test-node": "ts-node --skip-ignore -P tsconfig.test.json src/test_node.ts",
     "test-bundle-size": "./scripts/test-bundle-size.js",
     "test-cc": "bazel test //src/cc:cc_tests --test_output=all",
     "test-browser-ci": "karma start --singleRun --browsers=bs_chrome_mac"
@@ -47,7 +47,7 @@
     "clang-format": "~1.2.4",
     "jasmine": "~3.1.0",
     "jasmine-core": "~3.1.0",
-    "karma": "~4.0.0",
+    "karma": "~4.2.0",
     "karma-browserstack-launcher": "~1.4.0",
     "karma-chrome-launcher": "~2.2.0",
     "karma-firefox-launcher": "~1.1.0",
