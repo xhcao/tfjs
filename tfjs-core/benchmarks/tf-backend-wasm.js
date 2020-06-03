@@ -2773,6 +2773,12 @@
           this.move(dataId, values, shape, dtype);
           return dataId;
       }
+      fill(shape, value, dtype) {
+        const out = this.makeOutput(shape, dtype);
+        const outVals = this.typedArrayFromHeap(out);
+        outVals.fill(value);
+        return tfjsCore.engine().makeTensor(outVals, shape, dtype, this);
+      }
       numDataIds() {
           return this.dataIdMap.numDataIds();
       }
