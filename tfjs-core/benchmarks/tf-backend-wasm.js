@@ -577,9 +577,9 @@
    * =============================================================================
    */
   function concat(args) {
-      const { inputs, backend, attrs: { axis } } = args;
+      const { inputs, backend } = args;
+      const axis = tfjsCore.util.parseAxisParam(args.attrs.axis, inputs[0].shape)[0];
       const outShape = tfjsCore.backend_util.computeOutShape(inputs.map(t => t.shape), axis);
-      console.log("WASM CONCAT", outShape, axis);
       inputs.forEach(d => console.log(d.shape));
       const out = backend.makeOutput(outShape, inputs[0].dtype);
       const batchDim = tfjsCore.util.sizeFromShape(inputs[0].shape.slice(0, axis));
