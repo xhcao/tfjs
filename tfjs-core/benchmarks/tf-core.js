@@ -2206,20 +2206,12 @@
             this.throwIfDisposed();
             return opHandler.divStrict(this, x);
         };
-        Tensor.prototype.minimum = function (x) {
-            this.throwIfDisposed();
-            return opHandler.minimum(this, x);
-        };
         /**
          * @deprecated strict variants of ops have been deprecated
          */
         Tensor.prototype.minimumStrict = function (x) {
             this.throwIfDisposed();
             return opHandler.minimumStrict(this, x);
-        };
-        Tensor.prototype.maximum = function (x) {
-            this.throwIfDisposed();
-            return opHandler.maximum(this, x);
         };
         /**
          * @deprecated strict variants of ops have been deprecated
@@ -3590,7 +3582,7 @@
                 var accumulatedGradientMap = {};
                 accumulatedGradientMap[y.id] = (dy == null) ? ones(y.shape) : dy;
                 // Backprop gradients through the filtered nodes.
-                backpropagateGradients(accumulatedGradientMap, filteredTape,
+                backpropagateGradients(accumulatedGradientMap, filteredTape, 
                 // Pass the tidy function to avoid circular dep with `tape.ts`.
                 function (f) { return _this.tidy(f); });
                 var grads = xs.map(function (x) { return accumulatedGradientMap[x.id]; });
@@ -3841,6 +3833,7 @@
     var BatchMatMul = 'BatchMatMul';
     var BatchToSpaceND = 'BatchToSpaceND';
     var BroadcastTo = 'BroadcastTo';
+    var Complex = 'Complex';
     var Concat = 'Concat';
     var Conv2D = 'Conv2D';
     var Conv2DBackpropFilter = 'Conv2DBackpropFilter';
@@ -3856,27 +3849,33 @@
     var Diag = 'Diag';
     var Div = 'Div';
     var Equal = 'Equal';
+    var Fill = 'Fill';
     var FusedBatchNorm = 'FusedBatchNorm';
+    var GatherNd = 'GatherNd';
     var Greater = 'Greater';
     var GreaterEqual = 'GreaterEqual';
     var Identity = 'Identity';
+    var Imag = 'Imag';
     var Less = 'Less';
     var LessEqual = 'LessEqual';
     var LRN = 'LRN';
     var LRNBackprop = 'LRNBackprop';
+    var Max = 'Max';
+    var Maximum = 'Maximum';
     var MaxPool = 'MaxPool';
     var MaxPoolBackprop = 'MaxPoolBackprop';
     var MaxPool3D = 'MaxPool3D';
     var MaxPool3DBackprop = 'MaxPool3DBackprop';
     var MaxPoolWithArgmax = 'MaxPoolWithArgmax';
+    var Minimum = 'Minimum';
     var NotEqual = 'NotEqual';
     var NonMaxSuppressionV3 = 'NonMaxSuppressionV3';
     var NonMaxSuppressionV5 = 'NonMaxSuppressionV5';
-    var Max = 'Max';
     var OneHot = 'OneHot';
     var PadV2 = 'PadV2';
     var Pool = 'Pool';
     var Pow = 'Pow';
+    var Real = 'Real';
     var Relu = 'Relu';
     var SelectV2 = 'SelectV2';
     var SpaceToBatchND = 'SpaceToBatchND';
@@ -4251,7 +4250,7 @@
 
     /**
      * @license
-     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Copyright 2020 Google Inc. All Rights Reserved.
      * Licensed under the Apache License, Version 2.0 (the "License");
      * you may not use this file except in compliance with the License.
      * You may obtain a copy of the License at
@@ -4289,8 +4288,69 @@
         var $imag = convertToTensor(imag, 'imag', 'complex');
         assertShapesMatch($real.shape, $imag.shape, "real and imag shapes, " + $real.shape + " and " + $imag.shape + ", " +
             "must match in call to tf.complex().");
-        return ENGINE.runKernelFunc(function (backend) { return backend.complex($real, $imag); }, { $real: $real, $imag: $imag });
+        var forward = function (backend) {
+            return backend.complex($real, $imag);
+        };
+        var inputs = { real: $real, imag: $imag };
+        return ENGINE.runKernelFunc(forward, inputs, null /* gradient */, Complex);
     }
+    var complex = op({ complex_: complex_ });
+
+    /**
+     * @license
+     * Copyright 2020 Google Inc. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
+    /**
+     * Returns the imaginary part of a complex (or real) tensor.
+     *
+     * Given a tensor input, this operation returns a tensor of type float that is
+     * the imaginary part of each element in input considered as a complex number.
+     * If input is real, a tensor of all zeros is returned.
+     *
+     * ```js
+     * const x = tf.complex([-2.25, 3.25], [4.75, 5.75]);
+     * tf.imag(x).print();
+     * ```
+     */
+    /** @doc {heading: 'Tensors', subheading: 'Creation'} */
+    function imag_(input) {
+        var $input = convertToTensor(input, 'input', 'imag');
+        var forward = function (backend) {
+            return backend.imag($input);
+        };
+        var inputs = { input: $input };
+        return ENGINE.runKernelFunc(forward, inputs, null /* gradient */, Imag);
+    }
+    var imag = op({ imag_: imag_ });
+
+    /**
+     * @license
+     * Copyright 2020 Google Inc. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     /**
      * Returns the real part of a complex (or real) tensor.
      *
@@ -4307,28 +4367,13 @@
     /** @doc {heading: 'Tensors', subheading: 'Creation'} */
     function real_(input) {
         var $input = convertToTensor(input, 'input', 'real');
-        return ENGINE.runKernelFunc(function (backend) { return backend.real($input); }, { $input: $input });
+        var forward = function (backend) {
+            return backend.real($input);
+        };
+        var inputs = { input: $input };
+        return ENGINE.runKernelFunc(forward, inputs, null /* gradient */, Real);
     }
-    /**
-     * Returns the imaginary part of a complex (or real) tensor.
-     *
-     * Given a tensor input, this operation returns a tensor of type float that is
-     * the imaginary part of each element in input considered as a complex number.
-     * If input is real, a tensor of all zeros is returned.
-     *
-     * ```js
-     * const x = tf.complex([-2.25, 3.25], [4.75, 5.75]);
-     * tf.imag(x).print();
-     * ```
-     */
-    /** @doc {heading: 'Tensors', subheading: 'Creation'} */
-    function imag_(input) {
-        var $input = convertToTensor(input, 'input', 'imag');
-        return ENGINE.runKernelFunc(function (backend) { return backend.imag($input); }, { $input: $input });
-    }
-    var complex = op({ complex_: complex_ });
     var real = op({ real_: real_ });
-    var imag = op({ imag_: imag_ });
 
     /**
      * @license
@@ -4725,22 +4770,6 @@
         return ENGINE.makeTensor(values, shape, dtype);
     }
     /**
-     * Creates a `tf.Tensor` filled with a scalar value.
-     *
-     * ```js
-     * tf.fill([2, 2], 4).print();
-     * ```
-     *
-     * @param shape An array of integers defining the output tensor shape.
-     * @param value The scalar value to fill the tensor with.
-     * @param dtype The type of an element in the resulting tensor. Defaults to
-     * 'float'.
-     */
-    /** @doc {heading: 'Tensors', subheading: 'Creation'} */
-    function fill(shape, value, dtype) {
-        return ENGINE.runKernelFunc(function (backend) { return backend.fill(shape, value, dtype); }, {});
-    }
-    /**
      * Creates a `tf.Tensor` with all elements set to 1 with the same shape as the
      * given tensor.
      *
@@ -4908,7 +4937,6 @@
             });
         }
         var $axis = parseAxisParam(axis, $tensors[0].shape)[0];
-        console.log("CORE CONCAT", $axis, axis);
         var outShape = computeOutShape($tensors.map(function (t) { return t.shape; }), $axis);
         if (sizeFromShape(outShape) === 0) {
             return tensor([], outShape);
@@ -4921,8 +4949,6 @@
         var shapes = $tensors.map(function (t) { return t.shape; });
         assertParamsConsistent(shapes, $axis);
         var forward = function (backend, save) {
-            var $axis = parseAxisParam(axis, $tensors[0].shape)[0];
-            console.log("CORE CONCAT", $axis);
             var res = backend.concat($tensors, $axis);
             save($tensors);
             return res;
@@ -9444,54 +9470,6 @@
         return $a.mod($b);
     }
     /**
-     * Returns the min of a and b (`a < b ? a : b`) element-wise.
-     * Supports broadcasting.
-     *
-     * We also expose `minimumStrict` which has the same signature as this op and
-     * asserts that `a` and `b` are the same shape (does not broadcast).
-     *
-     * ```js
-     * const a = tf.tensor1d([1, 4, 3, 16]);
-     * const b = tf.tensor1d([1, 2, 9, 4]);
-     *
-     * a.minimum(b).print();  // or tf.minimum(a, b)
-     * ```
-     *
-     * ```js
-     * // Broadcast minimum a with b.
-     * const a = tf.tensor1d([2, 4, 6, 8]);
-     * const b = tf.scalar(5);
-     *
-     * a.minimum(b).print();  // or tf.minimum(a, b)
-     * ```
-     *
-     * @param a The first tensor.
-     * @param b The second tensor. Must have the same type as `a`.
-     */
-    /** @doc {heading: 'Operations', subheading: 'Arithmetic'} */
-    function minimum_(a, b) {
-        var _a;
-        var $a = convertToTensor(a, 'a', 'minimum');
-        var $b = convertToTensor(b, 'b', 'minimum');
-        _a = makeTypesMatch($a, $b), $a = _a[0], $b = _a[1];
-        if ($a.dtype === 'bool') {
-            $a = $a.toInt();
-            $b = $b.toInt();
-        }
-        assertAndGetBroadcastShape($a.shape, $b.shape);
-        var der = function (dy, saved) {
-            var $a = saved[0], $b = saved[1];
-            var derA = function () { return dy.mul($a.lessEqual($b).toFloat()); };
-            var derB = function () { return dy.mul($a.greater($b).toFloat()); };
-            return { a: derA, b: derB };
-        };
-        return ENGINE.runKernelFunc(function (backend, save) {
-            var res = backend.minimum($a, $b);
-            save([$a, $b]);
-            return res;
-        }, { a: $a, b: $b }, der, 'Minimum');
-    }
-    /**
      * @deprecated
      * Returns the min of a and b (`a < b ? a : b`) element-wise. Inputs must
      * be the same shape. For broadcasting support, use minimum().
@@ -9506,54 +9484,6 @@
         var $b = convertToTensor(b, 'b', 'minimumStrict');
         assertShapesMatch($a.shape, $b.shape, 'Error in minimumStrict: ');
         return $a.minimum($b);
-    }
-    /**
-     * Returns the max of a and b (`a > b ? a : b`) element-wise.
-     * Supports broadcasting.
-     *
-     * We also expose `tf.maximumStrict` which has the same signature as this op and
-     * asserts that `a` and `b` are the same shape (does not broadcast).
-     *
-     * ```js
-     * const a = tf.tensor1d([1, 4, 3, 16]);
-     * const b = tf.tensor1d([1, 2, 9, 4]);
-     *
-     * a.maximum(b).print();  // or tf.maximum(a, b)
-     * ```
-     *
-     * ```js
-     * // Broadcast maximum a with b.
-     * const a = tf.tensor1d([2, 4, 6, 8]);
-     * const b = tf.scalar(5);
-     *
-     * a.maximum(b).print();  // or tf.maximum(a, b)
-     * ```
-     *
-     * @param a The first tensor.
-     * @param b The second tensor. Must have the same type as `a`.
-     */
-    /** @doc {heading: 'Operations', subheading: 'Arithmetic'} */
-    function maximum_(a, b) {
-        var _a;
-        var $a = convertToTensor(a, 'a', 'maximum');
-        var $b = convertToTensor(b, 'b', 'maximum');
-        _a = makeTypesMatch($a, $b), $a = _a[0], $b = _a[1];
-        if ($a.dtype === 'bool') {
-            $a = $a.toInt();
-            $b = $b.toInt();
-        }
-        assertAndGetBroadcastShape($a.shape, $b.shape);
-        var der = function (dy, saved) {
-            var $a = saved[0], $b = saved[1];
-            var derA = function () { return dy.mul($a.greaterEqual($b).toFloat()); };
-            var derB = function () { return dy.mul($a.less($b).toFloat()); };
-            return { a: derA, b: derB };
-        };
-        return ENGINE.runKernelFunc(function (backend, save) {
-            var res = backend.maximum($a, $b);
-            save([$a, $b]);
-            return res;
-        }, { a: $a, b: $b }, der, 'Maximum');
     }
     /**
      * @deprecated
@@ -9643,9 +9573,7 @@
     var atan2 = op({ atan2_: atan2_ });
     var divStrict = op({ divStrict_: divStrict_ });
     var floorDiv = op({ floorDiv_: floorDiv_ });
-    var maximum = op({ maximum_: maximum_ });
     var maximumStrict = op({ maximumStrict_: maximumStrict_ });
-    var minimum = op({ minimum_: minimum_ });
     var minimumStrict = op({ minimumStrict_: minimumStrict_ });
     var mod = op({ mod_: mod_ });
     var modStrict = op({ modStrict_: modStrict_ });
@@ -10150,6 +10078,120 @@
      * =============================================================================
      */
     /**
+     * Returns the truth value of (a >= b) element-wise. Supports broadcasting.
+     *
+     * ```js
+     * const a = tf.tensor1d([1, 2, 3]);
+     * const b = tf.tensor1d([2, 2, 2]);
+     *
+     * a.greaterEqual(b).print();
+     * ```
+     *
+     * @param a The first input tensor.
+     * @param b The second input tensor. Must have the same dtype as `a`.
+     */
+    /** @doc {heading: 'Operations', subheading: 'Logical'} */
+    function greaterEqual_(a, b) {
+        var _a;
+        var $a = convertToTensor(a, 'a', 'greaterEqual');
+        var $b = convertToTensor(b, 'b', 'greaterEqual');
+        _a = makeTypesMatch($a, $b), $a = _a[0], $b = _a[1];
+        assertAndGetBroadcastShape($a.shape, $b.shape);
+        var forward = function (backend, save) {
+            var res = backend.greaterEqual($a, $b);
+            save([$a, $b]);
+            return res;
+        };
+        var inputs = { a: $a, b: $b };
+        return ENGINE.runKernelFunc(forward, inputs, null /* grad */, GreaterEqual);
+    }
+    var greaterEqual = op({ greaterEqual_: greaterEqual_ });
+
+    /**
+     * @license
+     * Copyright 2020 Google Inc. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
+    /**
+     * Returns the truth value of (a < b) element-wise. Supports broadcasting.
+     *
+     * ```js
+     * const a = tf.tensor1d([1, 2, 3]);
+     * const b = tf.tensor1d([2, 2, 2]);
+     *
+     * a.less(b).print();
+     * ```
+     * @param a The first input tensor.
+     * @param b The second input tensor. Must have the same dtype as `a`.
+     */
+    /** @doc {heading: 'Operations', subheading: 'Logical'} */
+    function less_(a, b) {
+        var _a;
+        var $a = convertToTensor(a, 'a', 'less');
+        var $b = convertToTensor(b, 'b', 'less');
+        _a = makeTypesMatch($a, $b), $a = _a[0], $b = _a[1];
+        assertAndGetBroadcastShape($a.shape, $b.shape);
+        var forward = function (backend) { return backend.less($a, $b); };
+        var inputs = { a: $a, b: $b };
+        return ENGINE.runKernelFunc(forward, inputs, null /* grad */, Less);
+    }
+    var less = op({ less_: less_ });
+
+    /**
+     * @license
+     * Copyright 2020 Google Inc. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
+    var maximumGradConfig = {
+        kernelName: Maximum,
+        inputsToSave: ['a', 'b'],
+        gradFunc: function (dy, saved) {
+            var a = saved[0], b = saved[1];
+            var derA = function () { return mul(dy, cast(greaterEqual(a, b), 'float32')); };
+            var derB = function () { return mul(dy, cast(less(a, b), 'float32')); };
+            return { a: derA, b: derB };
+        }
+    };
+
+    /**
+     * @license
+     * Copyright 2020 Google Inc. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
+    /**
      * Computes the backprop of a 3d max pool.
      *
      * @param dy The dy error, of rank 5 of shape
@@ -10361,6 +10403,121 @@
      * limitations under the License.
      * =============================================================================
      */
+    /**
+     * Returns the truth value of (a > b) element-wise. Supports broadcasting.
+     *
+     * ```js
+     * const a = tf.tensor1d([1, 2, 3]);
+     * const b = tf.tensor1d([2, 2, 2]);
+     *
+     * a.greater(b).print();
+     * ```
+     *
+     * @param a The first input tensor.
+     * @param b The second input tensor. Must have the same dtype as `a`.
+     */
+    /** @doc {heading: 'Operations', subheading: 'Logical'} */
+    function greater_(a, b) {
+        var _a;
+        var $a = convertToTensor(a, 'a', 'greater');
+        var $b = convertToTensor(b, 'b', 'greater');
+        _a = makeTypesMatch($a, $b), $a = _a[0], $b = _a[1];
+        assertAndGetBroadcastShape($a.shape, $b.shape);
+        var forward = function (backend) { return backend.greater($a, $b); };
+        var inputs = { a: $a, b: $b };
+        return ENGINE.runKernelFunc(forward, inputs, null /* grad */, Greater);
+    }
+    var greater = op({ greater_: greater_ });
+
+    /**
+     * @license
+     * Copyright 2020 Google Inc. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
+    /**
+     * Returns the truth value of (a <= b) element-wise. Supports broadcasting.
+     *
+     * ```js
+     * const a = tf.tensor1d([1, 2, 3]);
+     * const b = tf.tensor1d([2, 2, 2]);
+     *
+     * a.lessEqual(b).print();
+     * ```
+     *
+     * @param a The first input tensor.
+     * @param b The second input tensor. Must have the same dtype as `a`.
+     */
+    /** @doc {heading: 'Operations', subheading: 'Logical'} */
+    function lessEqual_(a, b) {
+        var _a;
+        var $a = convertToTensor(a, 'a', 'lessEqual');
+        var $b = convertToTensor(b, 'b', 'lessEqual');
+        _a = makeTypesMatch($a, $b), $a = _a[0], $b = _a[1];
+        assertAndGetBroadcastShape($a.shape, $b.shape);
+        var forward = function (backend, save) {
+            var res = backend.lessEqual($a, $b);
+            save([$a, $b]);
+            return res;
+        };
+        var inputs = { a: $a, b: $b };
+        return ENGINE.runKernelFunc(forward, inputs, null /* grad */, LessEqual);
+    }
+    var lessEqual = op({ lessEqual_: lessEqual_ });
+
+    /**
+     * @license
+     * Copyright 2020 Google Inc. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
+    var minimumGradConfig = {
+        kernelName: Minimum,
+        inputsToSave: ['a', 'b'],
+        gradFunc: function (dy, saved) {
+            var a = saved[0], b = saved[1];
+            var derA = function () { return mul(dy, cast(lessEqual(a, b), 'float32')); };
+            var derB = function () { return mul(dy, cast(greater(a, b), 'float32')); };
+            return { a: derA, b: derB };
+        }
+    };
+
+    /**
+     * @license
+     * Copyright 2020 Google Inc. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var oneHotGradConfig = {
         kernelName: OneHot,
         inputsToSave: ['indices'],
@@ -10398,48 +10555,6 @@
             return { x: function () { return dy.slice(begin, x.shape); } };
         }
     };
-
-    /**
-     * @license
-     * Copyright 2020 Google Inc. All Rights Reserved.
-     * Licensed under the Apache License, Version 2.0 (the "License");
-     * you may not use this file except in compliance with the License.
-     * You may obtain a copy of the License at
-     *
-     * http://www.apache.org/licenses/LICENSE-2.0
-     *
-     * Unless required by applicable law or agreed to in writing, software
-     * distributed under the License is distributed on an "AS IS" BASIS,
-     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-     * See the License for the specific language governing permissions and
-     * limitations under the License.
-     * =============================================================================
-     */
-    /**
-     * Returns the truth value of (a > b) element-wise. Supports broadcasting.
-     *
-     * ```js
-     * const a = tf.tensor1d([1, 2, 3]);
-     * const b = tf.tensor1d([2, 2, 2]);
-     *
-     * a.greater(b).print();
-     * ```
-     *
-     * @param a The first input tensor.
-     * @param b The second input tensor. Must have the same dtype as `a`.
-     */
-    /** @doc {heading: 'Operations', subheading: 'Logical'} */
-    function greater_(a, b) {
-        var _a;
-        var $a = convertToTensor(a, 'a', 'greater');
-        var $b = convertToTensor(b, 'b', 'greater');
-        _a = makeTypesMatch($a, $b), $a = _a[0], $b = _a[1];
-        assertAndGetBroadcastShape($a.shape, $b.shape);
-        var forward = function (backend) { return backend.greater($a, $b); };
-        var inputs = { a: $a, b: $b };
-        return ENGINE.runKernelFunc(forward, inputs, null /* grad */, Greater);
-    }
-    var greater = op({ greater_: greater_ });
 
     /**
      * @license
@@ -11580,8 +11695,10 @@
         maxGradConfig,
         spaceToBatchNDGradConfig,
         maxGradConfig,
+        maximumGradConfig,
         maxPoolGradConfig,
         maxPool3DGradConfig,
+        minimumGradConfig,
         oneHotGradConfig,
         padV2GradConfig,
         powGradConfig,
@@ -11725,6 +11842,7 @@
      */
     var DTYPE_VALUE_SIZE_MAP = {
         'float32': 4,
+        'float16': 2,
         'int32': 4,
         'uint16': 2,
         'uint8': 1,
@@ -11851,6 +11969,7 @@
     function decodeWeights(buffer, specs) {
         // TODO(adarob, cais): Support quantization.
         var out = {};
+        var float16Decode;
         var offset = 0;
         for (var _i = 0, specs_1 = specs; _i < specs_1.length; _i++) {
             var spec = specs_1[_i];
@@ -11861,10 +11980,23 @@
             var values = void 0;
             if ('quantization' in spec) {
                 var quantization = spec.quantization;
-                if (quantization.dtype !== 'uint8' && quantization.dtype !== 'uint16') {
+                if (quantization.dtype === 'uint8' || quantization.dtype === 'uint16') {
+                    if (!('min' in quantization && 'scale' in quantization)) {
+                        throw new Error("Weight " + spec.name + " with quantization " + quantization.dtype + " " +
+                            "doesn't have corresponding metadata min and scale.");
+                    }
+                }
+                else if (quantization.dtype === 'float16') {
+                    if (dtype !== 'float32') {
+                        throw new Error("Weight " + spec.name + " is quantized with " + quantization.dtype + " " +
+                            ("which only supports weights of type float32 not " + dtype + "."));
+                    }
+                }
+                else {
                     throw new Error("Weight " + spec.name + " has unknown " +
                         ("quantization dtype " + quantization.dtype + ". ") +
-                        "Supported quantization dtypes are: 'uint8' and 'uint16'.");
+                        "Supported quantization dtypes are: " +
+                        "'uint8', 'uint16', and 'float16'.");
                 }
                 var quantizationSizeFactor = DTYPE_VALUE_SIZE_MAP[quantization.dtype];
                 var byteBuffer = buffer.slice(offset, offset + size * quantizationSizeFactor);
@@ -11872,13 +12004,29 @@
                     new Uint8Array(byteBuffer) :
                     new Uint16Array(byteBuffer);
                 if (dtype === 'float32') {
-                    values = new Float32Array(quantizedArray.length);
-                    for (var i = 0; i < quantizedArray.length; i++) {
-                        var v = quantizedArray[i];
-                        values[i] = v * quantization.scale + quantization.min;
+                    if (quantization.dtype === 'uint8' || quantization.dtype === 'uint16') {
+                        values = new Float32Array(quantizedArray.length);
+                        for (var i = 0; i < quantizedArray.length; i++) {
+                            var v = quantizedArray[i];
+                            values[i] = v * quantization.scale + quantization.min;
+                        }
+                    }
+                    else if (quantization.dtype === 'float16') {
+                        if (float16Decode === undefined) {
+                            float16Decode = getFloat16Decoder();
+                        }
+                        values = float16Decode(quantizedArray);
+                    }
+                    else {
+                        throw new Error("Unsupported quantization type " + quantization.dtype + " " +
+                            "for weight type float32.");
                     }
                 }
                 else if (dtype === 'int32') {
+                    if (quantization.dtype !== 'uint8' && quantization.dtype !== 'uint16') {
+                        throw new Error("Unsupported quantization type " + quantization.dtype + " " +
+                            "for weight type int32.");
+                    }
                     values = new Int32Array(quantizedArray.length);
                     for (var i = 0; i < quantizedArray.length; i++) {
                         var v = quantizedArray[i];
@@ -12085,6 +12233,93 @@
             weightDataBytes: modelArtifacts.weightData == null ?
                 0 :
                 modelArtifacts.weightData.byteLength,
+        };
+    }
+    /**
+     * Computes mantisa table for casting Float16 to Float32
+     * See http://www.fox-toolkit.org/ftp/fasthalffloatconversion.pdf
+     *
+     * @returns Uint32Array, 2048 mantissa lookup values.
+     */
+    function computeFloat16MantisaTable() {
+        var convertMantissa = function (i) {
+            var m = i << 13;
+            var e = 0;
+            while ((m & 0x00800000) === 0) {
+                e -= 0x00800000;
+                m <<= 1;
+            }
+            m &= ~0x00800000;
+            e += 0x38800000;
+            return m | e;
+        };
+        var mantisaTable = new Uint32Array(2048);
+        mantisaTable[0] = 0;
+        for (var i = 1; i < 1024; i++) {
+            mantisaTable[i] = convertMantissa(i);
+        }
+        for (var i = 1024; i < 2048; i++) {
+            mantisaTable[i] = 0x38000000 + ((i - 1024) << 13);
+        }
+        return mantisaTable;
+    }
+    /**
+     * Computes exponent table for casting Float16 to Float32
+     * See http://www.fox-toolkit.org/ftp/fasthalffloatconversion.pdf
+     *
+     * @returns Uint32Array, 64 exponent lookup values.
+     */
+    function computeFloat16ExponentTable() {
+        var exponentTable = new Uint32Array(64);
+        exponentTable[0] = 0;
+        exponentTable[31] = 0x47800000;
+        exponentTable[32] = 0x80000000;
+        exponentTable[63] = 0xc7800000;
+        for (var i = 1; i < 31; i++) {
+            exponentTable[i] = i << 23;
+        }
+        for (var i = 33; i < 63; i++) {
+            exponentTable[i] = 0x80000000 + ((i - 32) << 23);
+        }
+        return exponentTable;
+    }
+    /**
+     * Computes offset table for casting Float16 to Float32
+     * See http://www.fox-toolkit.org/ftp/fasthalffloatconversion.pdf
+     *
+     * @returns Uint32Array, 6d offset values.
+     */
+    function computeFloat16OffsetTable() {
+        var offsetTable = new Uint32Array(64);
+        for (var i = 0; i < 64; i++) {
+            offsetTable[i] = 1024;
+        }
+        offsetTable[0] = offsetTable[32] = 0;
+        return offsetTable;
+    }
+    /**
+     * Retrieve a Float16 decoder which will decode a ByteArray of Float16 values
+     * to a Float32Array.
+     *
+     * @returns Function (buffer: Uint16Array) => Float32Array which decodes
+     *          the Uint16Array of Float16 bytes to a Float32Array.
+     */
+    function getFloat16Decoder() {
+        // Algorithm is based off of http://www.fox-toolkit.org/ftp/fasthalffloatconversion.pdf
+        // Cache lookup tables
+        var mantisaTable = computeFloat16MantisaTable();
+        var exponentTable = computeFloat16ExponentTable();
+        var offsetTable = computeFloat16OffsetTable();
+        return function (quantizedArray) {
+            var buffer = new ArrayBuffer(4 * quantizedArray.length);
+            var bufferUint32View = new Uint32Array(buffer);
+            for (var index = 0; index < quantizedArray.length; index++) {
+                var float16Bits = quantizedArray[index];
+                var float32Bits = mantisaTable[offsetTable[float16Bits >> 10] + (float16Bits & 0x3ff)] +
+                    exponentTable[float16Bits >> 10];
+                bufferUint32View[index] = float32Bits;
+            }
+            return new Float32Array(buffer);
         };
     }
 
@@ -12560,7 +12795,7 @@
                 'is not a web browser.');
         }
         // tslint:disable-next-line:no-any
-        var theWindow = window || self;
+        var theWindow = typeof window === 'undefined' ? self : window;
         var factory = theWindow.indexedDB || theWindow.mozIndexedDB ||
             theWindow.webkitIndexedDB || theWindow.msIndexedDB ||
             theWindow.shimIndexedDB;
@@ -14454,9 +14689,11 @@
         }
         // If the current backend has 'FromPixels' registered, it has a more
         // efficient way of handling pixel uploads, so we call that.
-        var kernel = getKernel('FromPixels', ENGINE.backendName);
+        var kernel = getKernel(FromPixels, ENGINE.backendName);
         if (kernel != null) {
-            return ENGINE.runKernel('FromPixels', { pixels: pixels }, { numChannels: numChannels });
+            var inputs = { pixels: pixels };
+            var attrs = { numChannels: numChannels };
+            return ENGINE.runKernel(FromPixels, inputs, attrs);
         }
         var _a = isVideo ?
             [
@@ -16356,7 +16593,7 @@
 
     /**
      * @license
-     * Copyright 2020 Google Inc. All Rights Reserved.
+     * Copyright 2020 Google LLC. All Rights Reserved.
      * Licensed under the Apache License, Version 2.0 (the "License");
      * you may not use this file except in compliance with the License.
      * You may obtain a copy of the License at
@@ -16371,121 +16608,22 @@
      * =============================================================================
      */
     /**
-     * Returns the truth value of (a >= b) element-wise. Supports broadcasting.
+     * Creates a `tf.Tensor` filled with a scalar value.
      *
      * ```js
-     * const a = tf.tensor1d([1, 2, 3]);
-     * const b = tf.tensor1d([2, 2, 2]);
-     *
-     * a.greaterEqual(b).print();
+     * tf.fill([2, 2], 4).print();
      * ```
      *
-     * @param a The first input tensor.
-     * @param b The second input tensor. Must have the same dtype as `a`.
+     * @param shape An array of integers defining the output tensor shape.
+     * @param value The scalar value to fill the tensor with.
+     * @param dtype The type of an element in the resulting tensor. Defaults to
+     * 'float'.
      */
-    /** @doc {heading: 'Operations', subheading: 'Logical'} */
-    function greaterEqual_(a, b) {
-        var _a;
-        var $a = convertToTensor(a, 'a', 'greaterEqual');
-        var $b = convertToTensor(b, 'b', 'greaterEqual');
-        _a = makeTypesMatch($a, $b), $a = _a[0], $b = _a[1];
-        assertAndGetBroadcastShape($a.shape, $b.shape);
-        var forward = function (backend, save) {
-            var res = backend.greaterEqual($a, $b);
-            save([$a, $b]);
-            return res;
-        };
-        var inputs = { a: $a, b: $b };
-        return ENGINE.runKernelFunc(forward, inputs, null /* grad */, GreaterEqual);
+    /** @doc {heading: 'Tensors', subheading: 'Creation'} */
+    function fill(shape, value, dtype) {
+        var attrs = { shape: shape, value: value, dtype: dtype };
+        return ENGINE.runKernelFunc(function (backend) { return backend.fill(shape, value, dtype); }, {}, null, Fill, attrs);
     }
-    var greaterEqual = op({ greaterEqual_: greaterEqual_ });
-
-    /**
-     * @license
-     * Copyright 2020 Google Inc. All Rights Reserved.
-     * Licensed under the Apache License, Version 2.0 (the "License");
-     * you may not use this file except in compliance with the License.
-     * You may obtain a copy of the License at
-     *
-     * http://www.apache.org/licenses/LICENSE-2.0
-     *
-     * Unless required by applicable law or agreed to in writing, software
-     * distributed under the License is distributed on an "AS IS" BASIS,
-     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-     * See the License for the specific language governing permissions and
-     * limitations under the License.
-     * =============================================================================
-     */
-    /**
-     * Returns the truth value of (a < b) element-wise. Supports broadcasting.
-     *
-     * ```js
-     * const a = tf.tensor1d([1, 2, 3]);
-     * const b = tf.tensor1d([2, 2, 2]);
-     *
-     * a.less(b).print();
-     * ```
-     * @param a The first input tensor.
-     * @param b The second input tensor. Must have the same dtype as `a`.
-     */
-    /** @doc {heading: 'Operations', subheading: 'Logical'} */
-    function less_(a, b) {
-        var _a;
-        var $a = convertToTensor(a, 'a', 'less');
-        var $b = convertToTensor(b, 'b', 'less');
-        _a = makeTypesMatch($a, $b), $a = _a[0], $b = _a[1];
-        assertAndGetBroadcastShape($a.shape, $b.shape);
-        var forward = function (backend) { return backend.less($a, $b); };
-        var inputs = { a: $a, b: $b };
-        return ENGINE.runKernelFunc(forward, inputs, null /* grad */, Less);
-    }
-    var less = op({ less_: less_ });
-
-    /**
-     * @license
-     * Copyright 2020 Google Inc. All Rights Reserved.
-     * Licensed under the Apache License, Version 2.0 (the "License");
-     * you may not use this file except in compliance with the License.
-     * You may obtain a copy of the License at
-     *
-     * http://www.apache.org/licenses/LICENSE-2.0
-     *
-     * Unless required by applicable law or agreed to in writing, software
-     * distributed under the License is distributed on an "AS IS" BASIS,
-     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-     * See the License for the specific language governing permissions and
-     * limitations under the License.
-     * =============================================================================
-     */
-    /**
-     * Returns the truth value of (a <= b) element-wise. Supports broadcasting.
-     *
-     * ```js
-     * const a = tf.tensor1d([1, 2, 3]);
-     * const b = tf.tensor1d([2, 2, 2]);
-     *
-     * a.lessEqual(b).print();
-     * ```
-     *
-     * @param a The first input tensor.
-     * @param b The second input tensor. Must have the same dtype as `a`.
-     */
-    /** @doc {heading: 'Operations', subheading: 'Logical'} */
-    function lessEqual_(a, b) {
-        var _a;
-        var $a = convertToTensor(a, 'a', 'lessEqual');
-        var $b = convertToTensor(b, 'b', 'lessEqual');
-        _a = makeTypesMatch($a, $b), $a = _a[0], $b = _a[1];
-        assertAndGetBroadcastShape($a.shape, $b.shape);
-        var forward = function (backend, save) {
-            var res = backend.lessEqual($a, $b);
-            save([$a, $b]);
-            return res;
-        };
-        var inputs = { a: $a, b: $b };
-        return ENGINE.runKernelFunc(forward, inputs, null /* grad */, LessEqual);
-    }
-    var lessEqual = op({ lessEqual_: lessEqual_ });
 
     /**
      * @license
@@ -16884,6 +17022,130 @@
      * =============================================================================
      */
     /**
+     * Returns the max of a and b (`a > b ? a : b`) element-wise.
+     * Supports broadcasting.
+     *
+     * We also expose `tf.maximumStrict` which has the same signature as this op and
+     * asserts that `a` and `b` are the same shape (does not broadcast).
+     *
+     * ```js
+     * const a = tf.tensor1d([1, 4, 3, 16]);
+     * const b = tf.tensor1d([1, 2, 9, 4]);
+     *
+     * a.maximum(b).print();  // or tf.maximum(a, b)
+     * ```
+     *
+     * ```js
+     * // Broadcast maximum a with b.
+     * const a = tf.tensor1d([2, 4, 6, 8]);
+     * const b = tf.scalar(5);
+     *
+     * a.maximum(b).print();  // or tf.maximum(a, b)
+     * ```
+     *
+     * @param a The first tensor.
+     * @param b The second tensor. Must have the same type as `a`.
+     */
+    /** @doc {heading: 'Operations', subheading: 'Arithmetic'} */
+    function maximum_(a, b) {
+        var _a;
+        var $a = convertToTensor(a, 'a', 'maximum');
+        var $b = convertToTensor(b, 'b', 'maximum');
+        _a = makeTypesMatch($a, $b), $a = _a[0], $b = _a[1];
+        if ($a.dtype === 'bool') {
+            $a = cast($a, 'int32');
+            $b = cast($b, 'int32');
+        }
+        assertAndGetBroadcastShape($a.shape, $b.shape);
+        var forward = function (backend, save) {
+            var res = backend.maximum($a, $b);
+            save([$a, $b]);
+            return res;
+        };
+        var inputs = { a: $a, b: $b };
+        return ENGINE.runKernelFunc(forward, inputs, null /* gradient */, Maximum);
+    }
+    var maximum = op({ maximum_: maximum_ });
+
+    /**
+     * @license
+     * Copyright 2020 Google Inc. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
+    /**
+     * Returns the min of a and b (`a < b ? a : b`) element-wise.
+     * Supports broadcasting.
+     *
+     * We also expose `minimumStrict` which has the same signature as this op and
+     * asserts that `a` and `b` are the same shape (does not broadcast).
+     *
+     * ```js
+     * const a = tf.tensor1d([1, 4, 3, 16]);
+     * const b = tf.tensor1d([1, 2, 9, 4]);
+     *
+     * a.minimum(b).print();  // or tf.minimum(a, b)
+     * ```
+     *
+     * ```js
+     * // Broadcast minimum a with b.
+     * const a = tf.tensor1d([2, 4, 6, 8]);
+     * const b = tf.scalar(5);
+     *
+     * a.minimum(b).print();  // or tf.minimum(a, b)
+     * ```
+     *
+     * @param a The first tensor.
+     * @param b The second tensor. Must have the same type as `a`.
+     */
+    /** @doc {heading: 'Operations', subheading: 'Arithmetic'} */
+    function minimum_(a, b) {
+        var _a;
+        var $a = convertToTensor(a, 'a', 'minimum');
+        var $b = convertToTensor(b, 'b', 'minimum');
+        _a = makeTypesMatch($a, $b), $a = _a[0], $b = _a[1];
+        if ($a.dtype === 'bool') {
+            $a = cast($a, 'int32');
+            $b = cast($b, 'int32');
+        }
+        assertAndGetBroadcastShape($a.shape, $b.shape);
+        var forward = function (backend, save) {
+            var res = backend.minimum($a, $b);
+            save([$a, $b]);
+            return res;
+        };
+        var inputs = { a: $a, b: $b };
+        return ENGINE.runKernelFunc(forward, inputs, null /* gradient */, Minimum);
+    }
+    var minimum = op({ minimum_: minimum_ });
+
+    /**
+     * @license
+     * Copyright 2020 Google Inc. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
+    /**
      * Creates a `tf.Tensor` with values drawn from a multinomial distribution.
      *
      * ```js
@@ -17217,10 +17479,10 @@
     // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
     // copies of the Software, and to permit persons to whom the Software is
     // furnished to do so, subject to the following conditions:
-    //
+    // 
     // The above copyright notice and this permission notice shall be included in
     // all copies or substantial portions of the Software.
-    //
+    // 
     // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
     // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
     // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -20320,7 +20582,11 @@
     function gatherND_(x, indices) {
         var $indices = convertToTensor(indices, 'indices', 'gatherND', 'int32');
         var $x = convertToTensor(x, 'x', 'gatherND');
-        return ENGINE.runKernelFunc(function (backend) { return backend.gatherND($x, $indices); }, { x: $x, indices: $indices }, null /* backward */, 'GatherNd');
+        var forward = function (backend) {
+            return backend.gatherND($x, $indices);
+        };
+        var inputs = { params: $x, indices: $indices };
+        return ENGINE.runKernelFunc(forward, inputs, null /* gradient */, GatherNd);
     }
     var gatherND = op({ gatherND_: gatherND_ });
 
@@ -22529,6 +22795,7 @@
         batchNorm4d: batchNorm4d,
         broadcastTo: broadcastTo,
         clone: clone,
+        complex: complex,
         concat: concat,
         concat1d: concat1d,
         concat2d: concat2d,
@@ -22548,8 +22815,10 @@
         dot: dot,
         equal: equal,
         eye: eye,
+        fill: fill,
         greater: greater,
         greaterEqual: greaterEqual,
+        imag: imag,
         less: less,
         lessEqual: lessEqual,
         localResponseNormalization: localResponseNormalization,
@@ -22558,6 +22827,8 @@
         maxPool: maxPool,
         maxPool3d: maxPool3d,
         maxPoolWithArgmax: maxPoolWithArgmax,
+        maximum: maximum,
+        minimum: minimum,
         multinomial: multinomial,
         notEqual: notEqual,
         oneHot: oneHot,
@@ -22573,6 +22844,7 @@
         randomGamma: randomGamma,
         randomNormal: randomNormal,
         randomUniform: randomUniform,
+        real: real,
         relu: relu,
         separableConv2d: separableConv2d,
         spaceToBatchND: spaceToBatchND,
@@ -22584,9 +22856,6 @@
         truncatedNormal: truncatedNormal,
         op: op,
         booleanMaskAsync: booleanMaskAsync,
-        complex: complex,
-        real: real,
-        imag: imag,
         reverse: reverse,
         reverse1d: reverse1d,
         reverse2d: reverse2d,
@@ -22651,9 +22920,7 @@
         atan2: atan2,
         divStrict: divStrict,
         floorDiv: floorDiv,
-        maximum: maximum,
         maximumStrict: maximumStrict,
-        minimum: minimum,
         minimumStrict: minimumStrict,
         mod: mod,
         modStrict: modStrict,
@@ -22682,7 +22949,6 @@
         stack: stack,
         unstack: unstack,
         setdiff1dAsync: setdiff1dAsync,
-        fill: fill,
         linspace: linspace,
         ones: ones$1,
         range: range,
@@ -23085,7 +23351,7 @@
                 return __generator(this, function (_a) {
                     switch (_a.label) {
                         case 0: return [4 /*yield*/, this.saveIterations()];
-                        case 1:
+                        case 1: 
                         // Order matters for Python compatibility.
                         return [2 /*return*/, [_a.sent()].concat(this.accumulatedGrads.map(function (v) { return ({ name: v.originalName, tensor: v.variable }); }))];
                     }
@@ -23590,7 +23856,7 @@
                 return __generator(this, function (_a) {
                     switch (_a.label) {
                         case 0: return [4 /*yield*/, this.saveIterations()];
-                        case 1:
+                        case 1: 
                         // Order matters for Python compatibility.
                         return [2 /*return*/, [_a.sent()].concat(this.accumulations.map(function (v) { return ({ name: v.originalName, tensor: v.variable }); }))];
                     }
@@ -25321,27 +25587,6 @@
      * limitations under the License.
      * =============================================================================
      */
-    Tensor.prototype.max = function (axis, keepDims) {
-        this.throwIfDisposed();
-        return max(this, axis, keepDims);
-    };
-
-    /**
-     * @license
-     * Copyright 2020 Google LLC. All Rights Reserved.
-     * Licensed under the Apache License, Version 2.0 (the "License");
-     * you may not use this file except in compliance with the License.
-     * You may obtain a copy of the License at
-     *
-     * http://www.apache.org/licenses/LICENSE-2.0
-     *
-     * Unless required by applicable law or agreed to in writing, software
-     * distributed under the License is distributed on an "AS IS" BASIS,
-     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-     * See the License for the specific language governing permissions and
-     * limitations under the License.
-     * =============================================================================
-     */
     Tensor.prototype.concat = function (x, axis) {
         this.throwIfDisposed();
         if (x instanceof Tensor) {
@@ -25727,9 +25972,72 @@
      * limitations under the License.
      * =============================================================================
      */
+    Tensor.prototype.max = function (axis, keepDims) {
+        this.throwIfDisposed();
+        return max(this, axis, keepDims);
+    };
+
+    /**
+     * @license
+     * Copyright 2020 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     Tensor.prototype.maxPool = function (filterSize, strides, pad, dimRoundingMode) {
         this.throwIfDisposed();
         return maxPool(this, filterSize, strides, pad, dimRoundingMode);
+    };
+
+    /**
+     * @license
+     * Copyright 2020 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
+    Tensor.prototype.maximum = function (b) {
+        this.throwIfDisposed();
+        return maximum(this, b);
+    };
+
+    /**
+     * @license
+     * Copyright 2020 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
+    Tensor.prototype.minimum = function (b) {
+        this.throwIfDisposed();
+        return minimum(this, b);
     };
 
     /**
@@ -26038,6 +26346,7 @@
     exports.BatchMatMul = BatchMatMul;
     exports.BatchToSpaceND = BatchToSpaceND;
     exports.BroadcastTo = BroadcastTo;
+    exports.Complex = Complex;
     exports.Concat = Concat;
     exports.Conv2D = Conv2D;
     exports.Conv2DBackpropFilter = Conv2DBackpropFilter;
@@ -26055,11 +26364,14 @@
     exports.Div = Div;
     exports.Environment = Environment;
     exports.Equal = Equal;
+    exports.Fill = Fill;
     exports.FromPixels = FromPixels;
     exports.FusedBatchNorm = FusedBatchNorm;
+    exports.GatherNd = GatherNd;
     exports.Greater = Greater;
     exports.GreaterEqual = GreaterEqual;
     exports.Identity = Identity;
+    exports.Imag = Imag;
     exports.KernelBackend = KernelBackend;
     exports.LRN = LRN;
     exports.LRNBackprop = LRNBackprop;
@@ -26071,6 +26383,8 @@
     exports.MaxPool3DBackprop = MaxPool3DBackprop;
     exports.MaxPoolBackprop = MaxPoolBackprop;
     exports.MaxPoolWithArgmax = MaxPoolWithArgmax;
+    exports.Maximum = Maximum;
+    exports.Minimum = Minimum;
     exports.MomentumOptimizer = MomentumOptimizer;
     exports.NonMaxSuppressionV3 = NonMaxSuppressionV3;
     exports.NonMaxSuppressionV5 = NonMaxSuppressionV5;
@@ -26081,6 +26395,7 @@
     exports.Pool = Pool;
     exports.Pow = Pow;
     exports.RMSPropOptimizer = RMSPropOptimizer;
+    exports.Real = Real;
     exports.Relu = Relu;
     exports.SGDOptimizer = SGDOptimizer;
     exports.SelectV2 = SelectV2;
