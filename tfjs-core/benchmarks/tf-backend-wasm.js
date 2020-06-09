@@ -1544,9 +1544,12 @@
           }
           axes = tfjsCore.backend_util.getInnerMostAxes(axes.length, xRank);
           const xTransposed = transpose({ inputs: { x }, attrs: { perm: permutedAxes }, backend });
-          const xTransposedVals = backend.typedArrayFromHeap(xTransposed);
-          xVals.set(xTransposedVals, 0);
-          backend.disposeData(xTransposed.dataId);
+          if (backend.dataIdMap.get(xTransposed.dataId).id !== xId) {
+              // If perm is not no-op.
+              const xTransposedVals = backend.typedArrayFromHeap(xTransposed);
+              xVals.set(xTransposedVals, 0);
+              backend.disposeData(xTransposed.dataId);
+          }
           xShape = newShape;
       }
       tfjsCore.backend_util.assertAxesAreInnerMostDims('max', axes, xRank);
