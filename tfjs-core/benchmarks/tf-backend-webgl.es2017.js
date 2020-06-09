@@ -9870,10 +9870,6 @@ return (round(mod(b, 2.0)) != 1) ?
           return this.compileAndRun(program, [x]);
       }
       concat(tensors, axis) {
-        console.log("WEBGL CONCAT!!!!!", axis);
-        if(axis < 0) {
-          console.warn("OH NO");
-        }
           if (tensors[0].dtype === 'complex64') {
               const reals = tensors.map((t) => tf.real(t));
               const imags = tensors.map((t) => tf.imag(t));
@@ -11280,11 +11276,6 @@ return (round(mod(b, 2.0)) != 1) ?
       compileAndRun(program, inputs, outputDtype, customSetup, preventEagerUnpackingOfOutput = false) {
         outputDtype = outputDtype || inputs[0].dtype;
         const outInfo = this.runWebGLProgram(program, inputs, outputDtype, customSetup, preventEagerUnpackingOfOutput);
-        if(program.constructor.name === 'ConcatProgram' || program.constructor.name === 'ConcatPackedProgram') {
-          console.log("COMPILE AND RUN WEBGL", program.constructor.name);
-          inputs.forEach(input => console.log(input.shape));
-          console.log(outInfo.shape);
-        }
           return tf.engine().makeTensorFromDataId(outInfo.dataId, outInfo.shape, outInfo.dtype);
       }
       getAndSaveBinary(key, getBinary) {
