@@ -569,7 +569,8 @@ export class WebGPUBackend extends KernelBackend {
 
   private binaryOp(a: Tensor, b: Tensor, op: BinaryOpType, boolType?: boolean):
       Tensor {
-    const program = getBinaryProgram(op, a.shape, b.shape);
+    const useFp16 = a.dtype === 'float16' && b.dtype === 'float16';
+    const program = getBinaryProgram(op, a.shape, b.shape, useFp16);
     if (boolType) {
       const dataId = this.write(null /*values*/, program.outputShape, 'bool');
       const output = engine().makeTensorFromDataId(

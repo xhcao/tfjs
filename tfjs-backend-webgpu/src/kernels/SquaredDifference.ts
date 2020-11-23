@@ -26,8 +26,9 @@ export const squaredDifferenceConfig: KernelConfig = {
     const {a, b} = inputs as SquaredDifferenceInputs;
     const webGPUBackend = backend as WebGPUBackend;
 
+    const useFp16 = a.dtype === 'float16' && b.dtype === 'float16';
     const program =
-        getBinaryProgram(BinaryOpType.SQUARED_DIFFERENCE, a.shape, b.shape);
+        getBinaryProgram(BinaryOpType.SQUARED_DIFFERENCE, a.shape, b.shape, useFp16);
     return webGPUBackend.compileAndRun(program, [a as Tensor, b as Tensor]);
   }
 };

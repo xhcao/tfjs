@@ -16,7 +16,6 @@
  */
 
 import {backend_util, DataType, util} from '@tensorflow/tfjs-core';
-
 import {symbolicallyComputeStrides} from './shader_util';
 
 export function getCoordsDataType(rank: number): string {
@@ -49,11 +48,13 @@ export function getShapeCoords(dataShape: number[]): string {
   }
 }
 
-type GLSLDataType = 'float'|'int'|'vec4'|'ivec4'|'bvec4';
+type GLSLDataType = 'float'|'float16_t'|'int'|'vec4'|'f16vec4'|'ivec4'|'bvec4';
 function mapToGlslTypes(type: DataType, isVec4: boolean): GLSLDataType|
     DataType {
   if (type === 'float32') {
     return isVec4 ? 'vec4' : 'float';
+  } else if (type === 'float16') {
+    return isVec4 ? 'f16vec4' : 'float16_t';
   } else if (type === 'int32') {
     return isVec4 ? 'ivec4' : 'int';
   } else if (type === 'bool') {
@@ -145,6 +146,7 @@ export function makeShader(
 }
 
 const SHADER_PREFIX = `#version 450
+  #extension GL_AMD_gpu_shader_half_float : require
 
   int idiv(int a, int b, float sign) {
     int res = a / b;
@@ -201,24 +203,41 @@ function getSetOutputSnippet(
       result[flatIndex] = ${
         glslType === 'ivec4' ?
             'ivec4(value)' :
-            (glslType === 'bvec4' ? 'bvec4(value)' : 'value')};
+            (glslType === 'bvec4' ? 'bvec4(value)' :
+            (glslType === 'f16vec4' ? 'f16vec4(value)' : 'value'))};
     }
     void setOutput(int flatIndex, ivec4 value) {
       result[flatIndex] = ${
         glslType === 'vec4' ?
             'vec4(value)' :
-            (glslType === 'bvec4' ? 'bvec4(value)' : 'value')};
+            (glslType === 'bvec4' ? 'bvec4(value)' :
+            (glslType === 'f16vec4' ? 'f16vec4(value)' : 'value'))};
+    }
+    void setOutput(int flatIndex, f16vec4 value) {
+      result[flatIndex] = ${
+        glslType === 'vec4' ?
+            'vec4(value)' :
+            (glslType === 'bvec4' ? 'bvec4(value)' :
+            (glslType === 'ivec4' ? 'ivec4(value)' : 'value'))};
     }`;
   } else {
     snippet = `void setOutput(int flatIndex, float value) {
       result[flatIndex] = ${
         glslType === 'int' ? 'int(value)' :
-                             (glslType === 'bool' ? 'bool(value)' : 'value')};
+        (glslType === 'bool' ? 'bool(value)' :
+        (glslType === 'float16_t' ? 'float16_t(value)' : 'value'))};
     }
     void setOutput(int flatIndex, int value) {
       result[flatIndex] = ${
         glslType === 'float' ? 'float(value)' :
-                               (glslType === 'bool' ? 'bool(value)' : 'value')};
+        (glslType === 'bool' ? 'bool(value)' :
+        (glslType === 'float16_t' ? 'float16_t(value)' : 'value'))};
+    }
+    void setOutput(int flatIndex, float16_t value) {
+      result[flatIndex] = ${
+        glslType === 'float' ? 'float(value)' :
+        (glslType === 'bool' ? 'bool(value)' :
+        (glslType === 'int' ? 'int(value)' : 'value'))};
     }`;
   }
 
@@ -277,18 +296,12 @@ function getSamplerFromInInfo(inInfo: InputInfo, isVec4: boolean): string {
   const funcName = 'get' + texName.charAt(0).toUpperCase() + texName.slice(1);
   const dims = ['d0', 'd1', 'd2', 'd3'].slice(0, rank);
   const inputs = dims.map(d => `int ${d}`).join(', ');
+  const retType = isVec4 ? (inInfo.dtype === "float16" ? 'f16vec4' : 'vec4') :
+    (inInfo.dtype === "float16" ? 'float16' : 'float');
 
   if (rank < 1) {
-    if (isVec4) {
-      return `
-        vec4 ${funcName}() {
-          return ${texName}[0];
-        }
-      `;
-    }
-
     return `
-      float ${funcName}() {
+      ${retType} ${funcName}() {
         return ${texName}[0];
       }
     `;
@@ -296,16 +309,16 @@ function getSamplerFromInInfo(inInfo: InputInfo, isVec4: boolean): string {
 
   if (isVec4) {
     return `
-    vec4 ${funcName}(${inputs}) {
-      return ${texName}[getFlatIndex(${type}(${dims.join(',')}),
-        ${getShapeCoords(inInfo.shape)}) / 4];
+      ${retType} ${funcName}(${inputs}) {
+        return ${texName}[getFlatIndex(${type}(${dims.join(',')}),
+          ${getShapeCoords(inInfo.shape)}) / 4];
     }
   `;
   }
 
   return `
-    float ${funcName}(${inputs}) {
-      return float(${texName}[getFlatIndex(${type}(${dims.join(',')}),
+    ${retType} ${funcName}(${inputs}) {
+      return ${retType}(${texName}[getFlatIndex(${type}(${dims.join(',')}),
         ${getShapeCoords(inInfo.shape)})]);
     }
   `;
@@ -325,26 +338,18 @@ function getSamplerAtOutputCoords(
   const broadcastDims = backend_util.getBroadcastDims(inInfo.shape, outShape);
   const rankDiff = outRank - inRank;
 
+  const retType = isVec4 ? (inInfo.dtype === "float16" ? 'f16vec4' : 'vec4') :
+    (inInfo.dtype === "float16" ? 'float16' : 'float');
+
   let coordsSnippet = '';
 
   if (inRank === 0) {
-    if (isVec4) {
-      return `
-      vec4 ${funcName}() {
-        return get${texFuncSnippet}();
-      }
-
-      vec4 ${funcName}(${type} coords) {
-        return get${texFuncSnippet}();
-      }
-    `;
-    }
     return `
-      float ${funcName}() {
+      ${retType} ${funcName}() {
         return get${texFuncSnippet}();
       }
 
-      float ${funcName}(${type} coords) {
+      ${retType} ${funcName}(${type} coords) {
         return get${texFuncSnippet}();
       }
     `;
@@ -371,35 +376,18 @@ function getSamplerAtOutputCoords(
     }
   }
 
-  if (isVec4) {
-    return `
-      vec4 ${funcName}() {
-        ${type} coords = getOutputCoords();
-        ${coordsSnippet}
-        return ${texName}[getFlatIndex(${unpackedCoordsSnippet}, ${
-        getShapeCoords(inInfo.shape)}) / 4];
-      }
-
-      vec4 ${funcName}(${type} coords) {
-        ${coordsSnippet}
-        return ${texName}[getFlatIndex(${unpackedCoordsSnippet}, ${
-        getShapeCoords(inInfo.shape)}) / 4];
-      }
-    `;
-  }
-
   return `
-    float ${funcName}() {
+    ${retType} ${funcName}() {
       ${type} coords = getOutputCoords();
       ${coordsSnippet}
-      return float(${texName}[getFlatIndex(${unpackedCoordsSnippet}, ${
-      getShapeCoords(inInfo.shape)})]);
+      return ${texName}[getFlatIndex(${unpackedCoordsSnippet}, ${
+      getShapeCoords(inInfo.shape)}) / 4];
     }
 
-    float ${funcName}(${type} coords) {
+    ${retType} ${funcName}(${type} coords) {
       ${coordsSnippet}
-      return float(${texName}[getFlatIndex(${unpackedCoordsSnippet}, ${
-      getShapeCoords(inInfo.shape)})]);
+      return ${texName}[getFlatIndex(${unpackedCoordsSnippet}, ${
+      getShapeCoords(inInfo.shape)}) / 4];
     }
   `;
 }

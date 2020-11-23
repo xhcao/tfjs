@@ -33,7 +33,10 @@ tf.registerBackend('webgpu', async () => {
   };
 
   const adapter = await navigator.gpu.requestAdapter(gpuDescriptor);
-  const device = await adapter.requestDevice({});
+  const deviceDescriptor: GPUDeviceDescriptor = {
+    extensions: adapter.extensions
+  };
+  const device = await adapter.requestDevice(deviceDescriptor);
   return new WebGPUBackend(device, glslang);
 }, 3 /*priority*/);
 

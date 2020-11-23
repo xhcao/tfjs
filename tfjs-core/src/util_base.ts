@@ -32,7 +32,7 @@ import {DataType, DataTypeMap, FlatVector, NumericDataType, RecursiveArray, Tens
  */
 // tslint:disable-next-line:no-any
 export function shuffle(array: any[]|Uint32Array|Int32Array|
-                        Float32Array): void {
+                        Float32Array | Uint16Array): void {
   let counter = array.length;
   let temp = 0;
   let index = 0;
@@ -396,6 +396,8 @@ export function getTypedArrayFromDType<D extends NumericDataType>(
   let values = null;
   if (dtype == null || dtype === 'float32') {
     values = new Float32Array(size);
+  } else if (dtype === 'float16') {
+    values = new Uint16Array(size);
   } else if (dtype === 'int32') {
     values = new Int32Array(size);
   } else if (dtype === 'bool') {
@@ -411,6 +413,8 @@ export function getArrayFromDType<D extends DataType>(
   let values = null;
   if (dtype == null || dtype === 'float32') {
     values = new Float32Array(size);
+  } else if (dtype === 'float16') {
+    values = new Uint16Array(size);
   } else if (dtype === 'int32') {
     values = new Int32Array(size);
   } else if (dtype === 'bool') {
@@ -436,7 +440,7 @@ export function checkConversionForErrors<D extends DataType>(
 /** Returns true if the dtype is valid. */
 export function isValidDtype(dtype: DataType): boolean {
   return dtype === 'bool' || dtype === 'complex64' || dtype === 'float32' ||
-      dtype === 'int32' || dtype === 'string';
+    dtype === 'float16' || dtype === 'int32' || dtype === 'string';
 }
 
 /**
@@ -450,7 +454,10 @@ export function hasEncodingLoss(oldType: DataType, newType: DataType): boolean {
   if (newType === 'float32' && oldType !== 'complex64') {
     return false;
   }
-  if (newType === 'int32' && oldType !== 'float32' && oldType !== 'complex64') {
+  if (newType === 'int32' && oldType !== 'float32' && oldType !== 'float16' && oldType !== 'complex64') {
+    return false;
+  }
+  if (newType === 'float16' && (oldType === 'float16' || oldType === 'bool')) {
     return false;
   }
   if (newType === 'bool' && oldType === 'bool') {
@@ -459,14 +466,16 @@ export function hasEncodingLoss(oldType: DataType, newType: DataType): boolean {
   return true;
 }
 
-export function isTypedArray(a: {}): a is Float32Array|Int32Array|Uint8Array {
-  return a instanceof Float32Array || a instanceof Int32Array ||
-      a instanceof Uint8Array;
+export function isTypedArray(a: {}): a is Float32Array|Uint16Array|Int32Array|Uint8Array {
+  return a instanceof Float32Array || a instanceof Uint16Array ||
+    a instanceof Int32Array || a instanceof Uint8Array;
 }
 
 export function bytesPerElement(dtype: DataType): number {
   if (dtype === 'float32' || dtype === 'int32') {
     return 4;
+  } else if (dtype === 'float16') {
+    return 2;
   } else if (dtype === 'complex64') {
     return 8;
   } else if (dtype === 'bool') {
@@ -510,6 +519,8 @@ export function inferDtype(values: TensorLike): DataType {
   }
   if (values instanceof Float32Array) {
     return 'float32';
+  } else if (values instanceof Uint16Array) {
+    return 'float16';
   } else if (values instanceof Int32Array || values instanceof Uint8Array) {
     return 'int32';
   } else if (isNumber(values)) {
@@ -600,6 +611,8 @@ export function makeZerosTypedArray<D extends DataType>(
     size: number, dtype: D): DataTypeMap[D] {
   if (dtype == null || dtype === 'float32' || dtype === 'complex64') {
     return new Float32Array(size) as DataTypeMap[D];
+  } else if (dtype === 'float16') {
+    return new Uint16Array(size) as DataTypeMap[D];
   } else if (dtype === 'int32') {
     return new Int32Array(size) as DataTypeMap[D];
   } else if (dtype === 'bool') {
@@ -619,6 +632,8 @@ export function makeZerosNestedTypedArray<D extends DataType>(
   const size = shape.reduce((prev, curr) => prev * curr, 1);
   if (dtype == null || dtype === 'float32') {
     return toNestedArray(shape, new Float32Array(size));
+  } else if (dtype === 'float16') {
+    return toNestedArray(shape, new Uint16Array(size));
   } else if (dtype === 'int32') {
     return toNestedArray(shape, new Int32Array(size));
   } else if (dtype === 'bool') {

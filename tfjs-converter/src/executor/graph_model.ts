@@ -100,10 +100,6 @@ export class GraphModel implements InferenceModel {
         // For backward compatibility: if no load handler can be found,
         // assume it is a relative http path.
         handlers.push(io.browserHTTPRequest(path as string, this.loadOptions));
-      } else if (handlers.length > 1) {
-        throw new Error(
-            `Found more than one (${handlers.length}) load handlers for ` +
-            `URL '${[path]}'`);
       }
       this.handler = handlers[0];
     }

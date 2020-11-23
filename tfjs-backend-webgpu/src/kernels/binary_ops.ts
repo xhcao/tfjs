@@ -17,8 +17,10 @@
 
 import {util} from '@tensorflow/tfjs-core';
 import {BinaryOpSharedProgram} from './binary_op_shared_webgpu';
+import {BinaryOpSharedFp16Program} from './binary_op_shared_fp16_webgpu';
 import {BinaryOpVec4Program} from './binary_op_vec4_webgpu';
 import {BinaryOpProgram} from './binary_op_webgpu';
+import {BinaryOpFp16Program} from './binary_op_fp16_webgpu';
 
 export enum BinaryOpType {
   MUL,
@@ -121,7 +123,7 @@ export function getBinaryOpString(
 }
 
 export function getBinaryProgram(
-    op: BinaryOpType, aShape: number[], bShape: number[]) {
+    op: BinaryOpType, aShape: number[], bShape: number[], useFp16?: boolean) {
   const useVec4 =
       util.arraysEqual(aShape, bShape) && util.sizeFromShape(aShape) % 4 === 0;
   const opStr = getBinaryOpString(op, useVec4);
@@ -133,9 +135,11 @@ export function getBinaryProgram(
   const useSharedMemoryWithB =
       bShape.length === 1 && aShape.length > 1 && bShape[0] < 2048;
   if (useSharedMemoryWithA || useSharedMemoryWithB) {
-    return new BinaryOpSharedProgram(
+    return useFp16 ? new BinaryOpSharedFp16Program(
+      opStr, aShape, bShape, useSharedMemoryWithB) : new BinaryOpSharedProgram(
         opStr, aShape, bShape, useSharedMemoryWithB);
   } else {
-    return new BinaryOpProgram(opStr, aShape, bShape);
+    return useFp16 ? new BinaryOpFp16Program(opStr, aShape, bShape) :
+      new BinaryOpProgram(opStr, aShape, bShape);
   }
 }
